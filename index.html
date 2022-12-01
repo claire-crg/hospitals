@@ -1,0 +1,215 @@
+
+<!DOCTYPE html>
+<html>
+<head>
+	<title>Leaflet Control Geocoder</title>
+
+	<script src="https://unpkg.com/leaflet@latest/dist/leaflet-src.js"></script>
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+	<script src="https://unpkg.com/leaflet-control-geocoder@latest/dist/Control.Geocoder.js"></script>
+    
+    <script src='https://unpkg.com/@turf/turf@6/turf.min.js'></script>
+
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@latest/dist/leaflet.css" />
+	<link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder@latest/dist/Control.Geocoder.css" />
+
+    <script src='hospitals.js'></script>
+    <script src='covid_cases_by_zip.js'></script>
+    <script src='covid_hospitalizations_by_zip.js'></script>
+
+	<style type="text/css">
+		body {
+			margin: 0;
+		}
+		#map {
+			position: absolute;
+			width: 100%;
+			height: 100%;
+		}
+
+		#geocode-selector {
+			position: absolute;
+			left: 10px;
+			bottom: 10px;
+			z-index: 10000;
+		}
+
+		#geocode-selector button {
+			border: 1px solid #aaa;
+			border-radius: 4px;
+			padding: 12px 24px;
+			margin-left: 24px;
+			font-size: 1.2em;
+			font-weight: bold;
+			transition: background-color 0.25s ease-out;
+			outline: none;
+		}
+
+		#geocode-selector button:hover {
+			background-color: white;
+		}
+
+		#geocode-selector .selected {
+			background-color: #0078A8;
+			color: white;
+		}
+
+		#geocode-selector .selected:hover {
+			background-color: #49e;
+		}
+	</style>
+</head>
+<body>
+	<div id="map"></div>
+	<div id="geocode-selector"></div>
+	<a href="https://github.com/perliedman/leaflet-control-geocoder"><img style="position: absolute; top: 0; left: 0; border: 0;" src="https://s3.amazonaws.com/github/ribbons/forkme_left_gray_6d6d6d.png" alt="Fork me on GitHub"></a>
+	
+    <script>
+        var map = L.map('map', {center: [40.01, -75.155399], zoom: 11, zoomControl:false, doubleClickZoom:false});
+
+        L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+        
+        var mbAttr = 'Map data &copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, ' +
+                'Imagery © <a href="https://www.mapbox.com/">Mapbox</a>',
+            mbUrl = 'https://api.mapbox.com/styles/v1/{id}/tiles/{z}/{x}/{y}?access_token=pk.eyJ1IjoibWFwYm94IiwiYSI6ImNpejY4NXVycTA2emYycXBndHRqcmZ3N3gifQ.rJcFIG214AriISLbB6B5aw';
+
+       // L.Control.geocoder().addTo(map);
+        
+        //add hospitals layers
+
+        var geojsonMarkerOptions = {
+            radius: 8,
+            fillColor: "#ff7800",
+            color: "#000",
+            weight: 0,
+            opacity: 1,
+            fillOpacity: 0.8
+        };
+
+        var hosp = L.icon({
+            iconUrl: 'icon1.jpg',
+            iconSize:     [20, 20], // size of the icon
+            iconAnchor:   [22, 94], // point of the icon which will correspond to marker's location
+        });
+
+        var blueIcon = L.icon({
+            iconUrl: 'blueIcon.jpg',
+            iconSize:     [20, 20], // size of the icon
+            iconAnchor:   [22, 94],
+        })
+        
+        hospitalLayer = L.geoJson(hospitals, {
+                pointToLayer: function(feature, latlng){
+                // layer.bindPopup('Hospital: '+feature.properties.HOSPITAL_NAME);
+                return m = L.marker(latlng, {icon: hosp})
+                }
+        }).addTo(map);
+        
+        // Set function for color ramp, you can use a better palette
+        function setColorFunc(density){
+            return density > 2219 ? '#800000' :
+                density > 1709 ? '#A0522D' :
+                density > 1209 ? '#DAA520' :
+                density > 646 ? '#FFF8DC' :
+                                '#BFBCBB';
+        };
+
+        function styleFunc(feature) {
+            return {
+                fillColor: setColorFunc(feature.properties.medInc),
+                fillOpacity: 0.9,
+                weight: 1,
+                opacity: 0.5,
+                color: '#ffffff',
+                //dashArray: '3'
+            };
+        }
+
+       // $.getJSON("covid_hospitalizations_by_zip.geojson", function(data){
+         //   hospitalizationLayer = L.geoJson(data,{
+               // style: styleFunc
+           // }).addTo(map);
+        //})
+        
+        function highlightFeature(e){
+            var layer = e.target;
+
+            layer.setStyle({
+                weight: 5,
+                color: '#666',
+                dashArray: '',
+                fillOpacity: 0.7
+            });
+            // for different web browsers
+            if (!L.Browser.ie && !L.Browser.opera && !L.Browser.edge) {
+                layer.bringToFront();
+            }
+        }
+
+        // Define what happens on mouseout:
+        function resetHighlight(e) {
+            medIncLayer.resetStyle(e.target);
+        } 
+        
+        
+           // hospitalFeatures = coordsToLatLng(hospitalLayer);
+            //console.log(hospitalFeatures)
+        function nearest(m, h){
+            nearestHospital = turf.nearest(m, h);
+        }
+            //console.log(hospitalFeatures);
+            //console.log(nearestHospital);
+            
+
+        // Now we’ll use the onEachFeature option to add the listeners on our state layers:
+        function onEachFeatureFunc(feature, layer){
+            layer.on({
+                mouseover: highlightFeature,
+                mouseout: resetHighlight
+                //click: zoomFeature
+            });
+            layer.on(
+                nearestHospital = turf.nearest(feature.properties.latlng, hospitalLayer)
+            );
+            layer.bindPopup('Median Income: '+feature.properties.medInc +nearestHospital);
+        }
+
+        $.getJSON("medInc/medInc1.geojson", function(data){
+            medIncLayer = L.geoJson(data,{
+                style: styleFunc,
+                onEachFeature: onEachFeatureFunc
+            }).addTo(map);
+        })
+        
+        //casesLayer = L.geoJson(cases).addTo(map);
+
+       // map.on("click", function(e){
+            //nearestHospital = turf.nearest(e.layer.feature, hospitalLayer);
+           // L.Popup().setLatLng(e.latlng).setContent(nearestHospital).addTo(map);
+         //  var pop = L.Popup().setLatLng(e.latlng).setContent("yes").openOn(map);
+        //})
+
+        //set and customize geocoder
+        var geocoder =
+         L.Control.geocoder({
+                defaultMarkGeocode: false
+            })
+                .on('markgeocode', function(e) {
+                    var coords = e.geocode.center;
+
+                    //hospitalFeatures = coordsToLatLng(hospitalLayer);
+                    //console.log(hospitalFeatures)
+                   // nearestHospital = turf.nearest(coords, hospitalFeatures);
+                    //console.log(hospitalFeatures);
+                    //console.log(nearestHospital);
+
+                    var pop = L.marker(coords, {icon: blueIcon}).bindPopup("The address you searched").addTo(map);       
+                   //var pop= L.Popup().setLatLng(coords).setContent("yes").addTo(map);     
+        }).addTo(map);
+
+        
+
+
+    </script>
+</body>
+</html>
