@@ -168,10 +168,10 @@
                 mouseout: resetHighlight
                 //click: zoomFeature
             });
-            layer.on(
-                nearestHospital = turf.nearest(feature.properties.latlng, hospitalLayer)
-            );
-            layer.bindPopup('Median Income: '+feature.properties.medInc +nearestHospital);
+           // layer.on(
+             //   nearestHospital = turf.nearest(feature.properties.latlng, hospitalLayer)
+           // );
+            layer.bindPopup('Median Income: '+feature.properties.medInc);
         }
 
         $.getJSON("medInc/medInc1.geojson", function(data){
